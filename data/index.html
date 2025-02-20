@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartLight</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #121212;
+      color: white;
+      text-align: center;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+      padding: 20px;
+      width: 90%;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    #input-color {
+      width: 100%;
+      max-width: 300px;
+      aspect-ratio: 1/1;
+      border-radius: 50%;
+      border: 3px solid white;
+    }
+
+    #color-preview {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid white;
+      background-color: transparent;
+    }
+
+    #button-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .option-button {
+      padding: 15px 25px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #4CAF50, #388E3C);
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .option-button:hover {
+      background: linear-gradient(135deg, #388E3C, #2E7D32);
+      transform: scale(1.1);
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        width: 95%;
+        gap: 20px;
+      }
+
+      .option-button {
+        font-size: 16px;
+        padding: 12px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <canvas id="input-color" width="320" height="320"></canvas>
+    <div id="color-preview"></div>
+    <div id="button-container">
+      <button class="option-button" data-option="1">Encendido Progresivo</button>
+      <button class="option-button" data-option="2">Efecto Teatro</button>
+      <button class="option-button" data-option="3">Modo Arcoíris</button>
+      <button class="option-button" data-option="4">Ciclo de Arcoíris</button>
+      <button class="option-button" data-option="5">Teatro Multicolor</button>
+      <button class="option-button" data-option="6">Color Único</button>
+    </div>
+  </div>
+  <script src="script.min.js"></script>
+</body>
+</html>

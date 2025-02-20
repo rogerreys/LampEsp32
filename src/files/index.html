@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>SmartLight</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+  <div class="container">
+    <canvas id="input-color" width="320" height="320"></canvas>
+    <div id="color-preview"></div>
+    <div id="button-container">
+      <button class="option-button" data-option="1">colorWipe</button>
+      <button class="option-button" data-option="2">theaterChase</button>
+      <button class="option-button" data-option="3">rainbow</button>
+      <button class="option-button" data-option="4">rainbowCycle</button>
+      <button class="option-button" data-option="5">theaterChaseRainbow</button>
+      <button class="option-button" data-option="6">Full Color</button>
+    </div>
+  </div>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: black;
+      box-sizing: border-box;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 60px;
+    }
+
+    #input-color {
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+    }
+
+    #color-preview {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2px solid gray;
+    }
+
+    .option-button {
+      padding: 10px 20px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      font-size: 16px;
+    }
+
+    .option-button:hover {
+      background-color: #45a049;
+    }
+  </style>
+  <script src="script.js"></script>
+</body>
+
+</html>
