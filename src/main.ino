@@ -5,16 +5,16 @@
 #include <DNSServer.h>
 
 // ESP32
-// #define LEDS_PIN 15
-// #define BUTTON_PIN_LED 19 // Pin del botón
-// #define BUTTON_PIN_RST 18
-// #define BUTTON_PIN_PWR 17
+#define LEDS_PIN GPIO_NUM_15
+#define BUTTON_PIN_LED GPIO_NUM_19 // Pin del botón
+#define BUTTON_PIN_RST GPIO_NUM_18
+#define BUTTON_PIN_PWR GPIO_NUM_4
 // ESP32 C3
-#define LEDS_PIN 0
-#define LED_PWR 5        // LED PODER (POSIBLE)
-#define BUTTON_PIN_LED 2 // Pin del botón
-#define BUTTON_PIN_RST 3
-#define BUTTON_PIN_PWR 4
+// #define LEDS_PIN 0
+// #define LED_PWR 5        // LED PODER (POSIBLE)
+// #define BUTTON_PIN_LED 2 // Pin del botón
+// #define BUTTON_PIN_RST 3
+// #define BUTTON_PIN_PWR 4
 
 #define DNS_NAME "lamp.local"
 #define NUMPIXELS 50
@@ -31,9 +31,9 @@ uint32_t wipeColor = pixels.Color(0, 200, 200);
 uint32_t colConeccionRed = pixels.Color(0, 255, 0);
 uint32_t colNoConeccionRed = pixels.Color(251, 188, 5);
 uint32_t colApagar = pixels.Color(246, 83, 20);
-int currentMode = 'f';       // Modo actual del juego de luces
+int currentMode = 3;       // Modo actual del juego de luces
 bool lastButtonState = HIGH; // Estado anterior del botón
-bool lastButtonStatePwr = LOW;
+bool lastButtonStatePwr = HIGH;
 bool espState = true; // Estado del ESP32 (encendido o apagado)
 unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 50; // Tiempo para evitar rebotes
@@ -171,20 +171,25 @@ void setup()
   // debug_init();
   pinMode(BUTTON_PIN_LED, INPUT_PULLUP);
   pinMode(BUTTON_PIN_RST, INPUT_PULLUP);
-  pinMode(BUTTON_PIN_PWR, INPUT_PULLDOWN);
+  pinMode(BUTTON_PIN_PWR, INPUT_PULLUP);
 
   Serial.begin(115200);
   // Configuracion Pixel
   pixels.begin();
   pixels.show();
 
-  if (digitalRead(BUTTON_PIN_PWR) == HIGH)
+  // Detectar si el ESP32 se despertó de deep sleep
+  if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0)
   {
-    Serial.println("Entrando en modo Deep Sleep...");
-    delay(500); // Evitar rebotes
-    indicateColor(colApagar);
-    esp_deep_sleep_start(); // Apagar el ESP32
+    Serial.println("ESP32 despertó por el botón");
   }
+  else
+  {
+    Serial.println("ESP32 iniciando normalmente");
+  }
+  // Configurar el GPIO para despertar cuando pase de HIGH -> LOW
+  // esp_deep_sleep_enable_gpio_wakeup(BUTTON_PIN_PWR, LOW);
+  esp_sleep_enable_ext0_wakeup(BUTTON_PIN_PWR, 0);
 
   if (!SPIFFS.begin(true))
   {
@@ -241,33 +246,6 @@ void setup()
  ************************************/
 void loop()
 {
-  bool buttonStatePwr = digitalRead(BUTTON_PIN_PWR);
-  if (buttonStatePwr == HIGH && lastButtonStatePwr == LOW)
-  {
-    if (digitalRead(BUTTON_PIN_PWR) == HIGH)
-    {
-      espState = !espState; // Cambia el estado del ESP32
-      if (espState)
-      {
-        Serial.println("Encendiendo ESP32...");
-        runMainLogic();
-      }
-      else
-      {
-        Serial.println("Apagando ESP32...");
-        delay(500); // Pequeña espera
-        indicateColor(colApagar);
-        esp_deep_sleep_start(); // Entrar en modo de bajo consumo
-      }
-    }
-  }
-  lastButtonStatePwr = buttonStatePwr;
-}
-/***********************************
- * runMainLogic
- ************************************/
-void runMainLogic()
-{
   if (WiFi.localIP())
   {
     // Procesa las solicitudes DNS
@@ -312,7 +290,8 @@ void runMainLogic()
 void handleButtonPress()
 {
   bool buttonState = digitalRead(BUTTON_PIN_LED);
-  
+  bool buttonStatePwr = digitalRead(BUTTON_PIN_PWR);
+
   if (buttonState == LOW && lastButtonState == HIGH)
   {
     if (millis() - lastDebounceTime > debounceDelay)
@@ -327,10 +306,19 @@ void handleButtonPress()
   {                // Si se presiona el botón
     delay(200);    // Pequeña espera para evitar rebotes
     ESP.restart(); // Reinicia el ESP32
-    Serial.println("-- REINICIO --");
   }
-  
+  if (buttonStatePwr == LOW && lastButtonStatePwr == HIGH)
+  {
+    if (digitalRead(BUTTON_PIN_PWR) == LOW)
+    {
+      Serial.println("Apagando ESP32...");
+      delay(500); // Pequeña espera
+      indicateColor(colApagar);
+      esp_deep_sleep_start(); // Entrar en modo de bajo consumo
+    }
+  }
   lastButtonState = buttonState;
+  lastButtonStatePwr = buttonStatePwr;
 }
 
 /***********************************
