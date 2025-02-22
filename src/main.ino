@@ -32,6 +32,7 @@ uint32_t colGreen = pixels.Color(0, 255, 0);
 uint32_t colPurple = pixels.Color(151, 1, 247);
 uint32_t colYellow = pixels.Color(251, 188, 5);
 uint32_t colOrange = pixels.Color(246, 83, 20);
+uint32_t colBlack = pixels.Color(0, 0, 0);
 // Variables de estado
 int currentMode = 3;       // Modo actual del juego de luces
 bool lastButtonState = HIGH; // Estado anterior del botón
@@ -319,6 +320,7 @@ void handleButtonPress()
       Serial.println("Apagando ESP32...");
       delay(500); // Pequeña espera
       indicateColor(colOrange);
+      fullColor(colBlack);
       esp_deep_sleep_start(); // Entrar en modo de bajo consumo
     }
   }
@@ -337,7 +339,7 @@ void indicateColor(uint32_t c)
   {
     fullColor(c);                     // Enciende los LEDs en verde
     delay(500);                       // Espera 500 ms
-    fullColor(pixels.Color(0, 0, 0)); // Apaga los LEDs
+    fullColor(colBlack);              // Apaga los LEDs
     delay(500);                       // Espera 500 ms
   }
 }
