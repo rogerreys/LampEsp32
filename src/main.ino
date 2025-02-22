@@ -3,18 +3,18 @@
 #include <WebServer.h>
 #include <SPIFFS.h>
 #include <DNSServer.h>
+#include <esp_sleep.h>
 
 // ESP32
-#define LEDS_PIN GPIO_NUM_15
-#define BUTTON_PIN_LED GPIO_NUM_19 // Pin del botón
-#define BUTTON_PIN_RST GPIO_NUM_18
-#define BUTTON_PIN_PWR GPIO_NUM_4
+// #define LEDS_PIN GPIO_NUM_15
+// #define BUTTON_PIN_LED GPIO_NUM_19 // Pin del botón
+// #define BUTTON_PIN_RST GPIO_NUM_18
+// #define BUTTON_PIN_PWR GPIO_NUM_4
 // ESP32 C3
-// #define LEDS_PIN 0
-// #define LED_PWR 5        // LED PODER (POSIBLE)
-// #define BUTTON_PIN_LED 2 // Pin del botón
-// #define BUTTON_PIN_RST 3
-// #define BUTTON_PIN_PWR 4
+#define LEDS_PIN GPIO_NUM_1
+#define BUTTON_PIN_LED GPIO_NUM_2 // Pin del botón
+#define BUTTON_PIN_RST GPIO_NUM_3
+#define BUTTON_PIN_PWR GPIO_NUM_0
 
 #define DNS_NAME "lamp.local"
 #define NUMPIXELS 50
@@ -26,11 +26,13 @@ DNSServer dnsServer;
 WebServer server(80);
 Adafruit_NeoPixel pixels(NUMPIXELS, LEDS_PIN, NEO_GRB + NEO_KHZ800);
 
-// Variables globales para el color y el estado
-uint32_t wipeColor = pixels.Color(0, 200, 200);
-uint32_t colConeccionRed = pixels.Color(0, 255, 0);
-uint32_t colNoConeccionRed = pixels.Color(251, 188, 5);
-uint32_t colApagar = pixels.Color(246, 83, 20);
+// Variables globales para el color
+uint32_t colSkyBlue = pixels.Color(0, 200, 200);
+uint32_t colGreen = pixels.Color(0, 255, 0);
+uint32_t colPurple = pixels.Color(151, 1, 247);
+uint32_t colYellow = pixels.Color(251, 188, 5);
+uint32_t colOrange = pixels.Color(246, 83, 20);
+// Variables de estado
 int currentMode = 3;       // Modo actual del juego de luces
 bool lastButtonState = HIGH; // Estado anterior del botón
 bool lastButtonStatePwr = HIGH;
@@ -109,7 +111,7 @@ void handleColor()
       currentMode = 6;
     }
     // Almacena el color y activa colorWipe
-    wipeColor = pixels.Color(rValue, gValue, bValue);
+    colSkyBlue = pixels.Color(rValue, gValue, bValue);
     // Crear un objeto JSON
     char jsonResponse[100]; // Buffer para almacenar la respuesta JSON
     snprintf(jsonResponse, sizeof(jsonResponse), "{\"r\": %d, \"g\": %d, \"b\": %d}", rValue, gValue, bValue);
@@ -186,10 +188,13 @@ void setup()
   else
   {
     Serial.println("ESP32 iniciando normalmente");
+    // Indicación visual de conexión exitosa
+    indicateColor(colPurple);
+    fullColor(colPurple);
   }
   // Configurar el GPIO para despertar cuando pase de HIGH -> LOW
-  // esp_deep_sleep_enable_gpio_wakeup(BUTTON_PIN_PWR, LOW);
-  esp_sleep_enable_ext0_wakeup(BUTTON_PIN_PWR, 0);
+  esp_deep_sleep_enable_gpio_wakeup(1ULL << BUTTON_PIN_PWR, ESP_GPIO_WAKEUP_GPIO_LOW); // ESP32C3
+  // esp_sleep_enable_ext0_wakeup(BUTTON_PIN_PWR, 0); // ESP32
 
   if (!SPIFFS.begin(true))
   {
@@ -199,7 +204,7 @@ void setup()
   Serial.println("SPIFFS montado correctamente");
 
   // Configuracion punto de acceso a "LamparaIoT"
-  wm.setConfigPortalTimeout(180);       // Tiempo de espera en segundos
+  wm.setConfigPortalTimeout(20);       // Tiempo de espera en segundos
   wm.setAPCallback(configModeCallback); // Callback cuando se inicia el AP
   wm.setCustomHeadElement("<title>Configuración LamparaIoT</title>");
 
@@ -207,7 +212,7 @@ void setup()
   if (!wm.autoConnect("LamparaIoT"))
   {
     Serial.println("No se pudo conectar, reiniciando...");
-    delay(3000);
+    delay(100);
     // ESP.restart();
   }
   if (WiFi.localIP())
@@ -215,7 +220,7 @@ void setup()
     // Si llega aquí, está conectado a la red WiFi
     Serial.printf("Conectado a la red WiFi\nDirección IP:%s\n", WiFi.localIP().toString().c_str());
     // Indicación visual de conexión exitosa
-    indicateColor(colConeccionRed);
+    indicateColor(colGreen);
 
     server.on("/", handleRoot);
     server.on("/chroma.png", handleImage);
@@ -237,7 +242,7 @@ void setup()
   else
   {
     Serial.println("Sin conexion a la red");
-    indicateColor(colNoConeccionRed);
+    indicateColor(colYellow);
   }
 }
 
@@ -263,10 +268,10 @@ void loop()
   switch (currentMode)
   {
   case 1:
-    colorWipe(wipeColor, TIME, currentMillis);
+    colorWipe(colSkyBlue, TIME, currentMillis);
     break;
   case 2:
-    theaterChase(wipeColor, TIME, currentMillis);
+    theaterChase(colSkyBlue, TIME, currentMillis);
     break;
   case 3:
     rainbow(TIME, currentMillis);
@@ -278,7 +283,7 @@ void loop()
     theaterChaseRainbow(TIME, currentMillis);
     break;
   case 6:
-    fullColor(wipeColor);
+    fullColor(colSkyBlue);
     break;
   }
 }
@@ -313,7 +318,7 @@ void handleButtonPress()
     {
       Serial.println("Apagando ESP32...");
       delay(500); // Pequeña espera
-      indicateColor(colApagar);
+      indicateColor(colOrange);
       esp_deep_sleep_start(); // Entrar en modo de bajo consumo
     }
   }
