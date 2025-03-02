@@ -205,7 +205,7 @@ void setup()
   Serial.println("SPIFFS montado correctamente");
 
   // Configuracion punto de acceso a "LamparaIoT"
-  wm.setConfigPortalTimeout(20);       // Tiempo de espera en segundos
+  wm.setConfigPortalTimeout(180);       // Tiempo de espera en segundos
   wm.setAPCallback(configModeCallback); // Callback cuando se inicia el AP
   wm.setCustomHeadElement("<title>Configuración LamparaIoT</title>");
 
