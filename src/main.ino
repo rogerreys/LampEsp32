@@ -197,54 +197,54 @@ void setup()
   esp_deep_sleep_enable_gpio_wakeup(1ULL << BUTTON_PIN_PWR, ESP_GPIO_WAKEUP_GPIO_LOW); // ESP32C3
   // esp_sleep_enable_ext0_wakeup(BUTTON_PIN_PWR, 0); // ESP32
 
-  if (!SPIFFS.begin(true))
-  {
-    Serial.println("Error al montar SPIFFS");
-    return;
-  }
-  Serial.println("SPIFFS montado correctamente");
+  // if (!SPIFFS.begin(true))
+  // {
+  //   Serial.println("Error al montar SPIFFS");
+  //   return;
+  // }
+  // Serial.println("SPIFFS montado correctamente");
 
   // Configuracion punto de acceso a "LamparaIoT"
-  wm.setConfigPortalTimeout(180);       // Tiempo de espera en segundos
-  wm.setAPCallback(configModeCallback); // Callback cuando se inicia el AP
-  wm.setCustomHeadElement("<title>Configuración LamparaIoT</title>");
+  // wm.setConfigPortalTimeout(180);       // Tiempo de espera en segundos
+  // wm.setAPCallback(configModeCallback); // Callback cuando se inicia el AP
+  // wm.setCustomHeadElement("<title>Configuración LamparaIoT</title>");
 
   // Intenta conectarse a una red guardada, si falla, inicia el portal de configuración
-  if (!wm.autoConnect("LamparaIoT"))
-  {
-    Serial.println("No se pudo conectar, reiniciando...");
-    delay(100);
-    // ESP.restart();
-  }
-  if (WiFi.localIP())
-  {
-    // Si llega aquí, está conectado a la red WiFi
-    Serial.printf("Conectado a la red WiFi\nDirección IP:%s\n", WiFi.localIP().toString().c_str());
-    // Indicación visual de conexión exitosa
-    indicateColor(colGreen);
+  // if (!wm.autoConnect("LamparaIoT"))
+  // {
+  //   Serial.println("No se pudo conectar, reiniciando...");
+  //   delay(100);
+  //   // ESP.restart();
+  // }
+  // if (WiFi.localIP())
+  // {
+  //   // Si llega aquí, está conectado a la red WiFi
+  //   Serial.printf("Conectado a la red WiFi\nDirección IP:%s\n", WiFi.localIP().toString().c_str());
+  //   // Indicación visual de conexión exitosa
+  //   indicateColor(colGreen);
 
-    server.on("/", handleRoot);
-    server.on("/chroma.png", handleImage);
-    server.on("/script.min.js", handleScript);
-    server.on("/api", handleColor);
+  //   server.on("/", handleRoot);
+  //   server.on("/chroma.png", handleImage);
+  //   server.on("/script.min.js", handleScript);
+  //   server.on("/api", handleColor);
 
-    server.begin();
+  //   server.begin();
 
-    // Inicia el servidor DNS
-    if (dnsServer.start(53, DNS_NAME, WiFi.localIP()))
-    {
-      Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.localIP().toString().c_str(), DNS_NAME);
-    }
-    else
-    {
-      Serial.println("Error al iniciar el servidor DNS");
-    }
-  }
-  else
-  {
+  //   // Inicia el servidor DNS
+  //   if (dnsServer.start(53, DNS_NAME, WiFi.localIP()))
+  //   {
+  //     Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.localIP().toString().c_str(), DNS_NAME);
+  //   }
+  //   else
+  //   {
+  //     Serial.println("Error al iniciar el servidor DNS");
+  //   }
+  // }
+  // else
+  // {
     Serial.println("Sin conexion a la red");
     indicateColor(colYellow);
-  }
+  // }
 }
 
 /***********************************
