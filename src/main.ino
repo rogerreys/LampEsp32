@@ -6,15 +6,11 @@
 #include <esp_sleep.h>
 
 // ESP32
-// #define LEDS_PIN GPIO_NUM_15
-// #define BUTTON_PIN_LED GPIO_NUM_19 // Pin del botón
-// #define BUTTON_PIN_RST GPIO_NUM_18
-// #define BUTTON_PIN_PWR GPIO_NUM_4
-// ESP32 C3
-#define LEDS_PIN GPIO_NUM_3
-#define BUTTON_PIN_LED GPIO_NUM_2 // Pin del botón
-#define BUTTON_PIN_RST GPIO_NUM_0
-#define BUTTON_PIN_PWR GPIO_NUM_1
+#define LEDS_PIN GPIO_NUM_15
+#define BUTTON_PIN_LED GPIO_NUM_19 // Pin del botón
+#define BUTTON_PIN_RST GPIO_NUM_18
+#define BUTTON_PIN_PWR GPIO_NUM_4
+
 
 #define DNS_NAME "lamp.local"
 #define NUMPIXELS 50
@@ -194,7 +190,6 @@ void setup()
     fullColor(colPurple);
   }
   // Configurar el GPIO para despertar cuando pase de HIGH -> LOW
-  // esp_deep_sleep_enable_gpio_wakeup(1ULL << BUTTON_PIN_PWR, ESP_GPIO_WAKEUP_GPIO_LOW); // ESP32C3
   esp_sleep_enable_ext0_wakeup(BUTTON_PIN_PWR, 0); // ESP32
 
   // if (!SPIFFS.begin(true))
