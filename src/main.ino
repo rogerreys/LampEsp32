@@ -5,16 +5,11 @@
 #include <DNSServer.h>
 #include <esp_sleep.h>
 
-// ESP32
-// #define LEDS_PIN GPIO_NUM_15
-// #define BUTTON_PIN_LED GPIO_NUM_19 // Pin del botón
-// #define BUTTON_PIN_RST GPIO_NUM_18
-// #define BUTTON_PIN_PWR GPIO_NUM_4
 // ESP32 C3
-#define LEDS_PIN GPIO_NUM_1
+#define LEDS_PIN GPIO_NUM_3
 #define BUTTON_PIN_LED GPIO_NUM_2 // Pin del botón
-#define BUTTON_PIN_RST GPIO_NUM_3
-#define BUTTON_PIN_PWR GPIO_NUM_0
+#define BUTTON_PIN_RST GPIO_NUM_0
+#define BUTTON_PIN_PWR GPIO_NUM_1
 
 #define DNS_NAME "lamp.local"
 #define NUMPIXELS 50
@@ -34,7 +29,7 @@ uint32_t colYellow = pixels.Color(251, 188, 5);
 uint32_t colOrange = pixels.Color(246, 83, 20);
 uint32_t colBlack = pixels.Color(0, 0, 0);
 // Variables de estado
-int currentMode = 3;       // Modo actual del juego de luces
+int currentMode = 3;         // Modo actual del juego de luces
 bool lastButtonState = HIGH; // Estado anterior del botón
 bool lastButtonStatePwr = HIGH;
 bool espState = true; // Estado del ESP32 (encendido o apagado)
@@ -195,7 +190,7 @@ void setup()
   }
   // Configurar el GPIO para despertar cuando pase de HIGH -> LOW
   esp_deep_sleep_enable_gpio_wakeup(1ULL << BUTTON_PIN_PWR, ESP_GPIO_WAKEUP_GPIO_LOW); // ESP32C3
-  // esp_sleep_enable_ext0_wakeup(BUTTON_PIN_PWR, 0); // ESP32
+  
 
   // if (!SPIFFS.begin(true))
   // {
@@ -242,8 +237,8 @@ void setup()
   // }
   // else
   // {
-    Serial.println("Sin conexion a la red");
-    indicateColor(colYellow);
+  Serial.println("Sin conexion a la red");
+  indicateColor(colYellow);
   // }
 }
 
@@ -337,10 +332,10 @@ void indicateColor(uint32_t c)
   // Secuencia de encendido y apagado dos veces
   for (int i = 0; i < 2; i++)
   {
-    fullColor(c);                     // Enciende los LEDs en verde
-    delay(500);                       // Espera 500 ms
-    fullColor(colBlack);              // Apaga los LEDs
-    delay(500);                       // Espera 500 ms
+    fullColor(c);        // Enciende los LEDs en verde
+    delay(500);          // Espera 500 ms
+    fullColor(colBlack); // Apaga los LEDs
+    delay(500);          // Espera 500 ms
   }
 }
 // Full color
