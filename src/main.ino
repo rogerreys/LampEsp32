@@ -6,11 +6,9 @@
 #include <esp_sleep.h>
 
 // ESP32
-#define LEDS_PIN GPIO_NUM_15
-#define BUTTON_PIN_LED GPIO_NUM_19 // Pin del botón
-#define BUTTON_PIN_RST GPIO_NUM_18
-#define BUTTON_PIN_PWR GPIO_NUM_4
-
+#define LEDS_PIN GPIO_NUM_3
+#define BTN_PIN_LED_PWR GPIO_NUM_2 // Pin del botón
+#define BTN_PIN_SET GPIO_NUM_1
 
 #define DNS_NAME "lamp.local"
 #define NUMPIXELS 50
@@ -30,15 +28,24 @@ uint32_t colYellow = pixels.Color(251, 188, 5);
 uint32_t colOrange = pixels.Color(246, 83, 20);
 uint32_t colBlack = pixels.Color(0, 0, 0);
 // Variables de estado
-int currentMode = 3;         // Modo actual del juego de luces
-bool lastButtonState = HIGH; // Estado anterior del botón
-bool lastButtonStatePwr = HIGH;
+int currentMode = 3;            // Modo actual del juego de luces
+bool lastbtnStateLedPwr = HIGH; // Estado anterior del botón
+bool lastbtnStatePinSet = HIGH;
 bool espState = true; // Estado del ESP32 (encendido o apagado)
 unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 50; // Tiempo para evitar rebotes
 // Variables para efectos sin delay
 unsigned long previousMillis = 0;
 int stepCounter = 0;
+
+// Pulsador
+int estadoPulsador = HIGH;
+int estadoAnteriorPulsador = HIGH;
+unsigned long tiempoInicioPresionado = 0;
+unsigned long tiempoPresionado = 0;
+unsigned long tiempoTotal = 0;
+bool pulsadorPresionado = false;
+const unsigned long tiempoClicLargo = 672;
 
 /***********************************
  * AP WiFi Manager
@@ -168,9 +175,8 @@ void handleColor()
 void setup()
 {
   // debug_init();
-  pinMode(BUTTON_PIN_LED, INPUT_PULLUP);
-  pinMode(BUTTON_PIN_RST, INPUT_PULLUP);
-  pinMode(BUTTON_PIN_PWR, INPUT_PULLUP);
+  pinMode(BTN_PIN_LED_PWR, INPUT_PULLUP);
+  pinMode(BTN_PIN_SET, INPUT_PULLUP);
 
   Serial.begin(115200);
   // Configuracion Pixel
@@ -190,7 +196,7 @@ void setup()
     fullColor(colPurple);
   }
   // Configurar el GPIO para despertar cuando pase de HIGH -> LOW
-  esp_sleep_enable_ext0_wakeup(BUTTON_PIN_PWR, 0); // ESP32
+  esp_sleep_enable_ext0_wakeup(BTN_PIN_LED_PWR, 0); // ESP32
 
   // if (!SPIFFS.begin(true))
   // {
@@ -290,27 +296,35 @@ void loop()
 // Función para detectar el botón con debounce
 void handleButtonPress()
 {
-  bool buttonState = digitalRead(BUTTON_PIN_LED);
-  bool buttonStatePwr = digitalRead(BUTTON_PIN_PWR);
+  bool btnStateLedPwr = digitalRead(BTN_PIN_LED_PWR);
+  bool btnStatePinSet = digitalRead(BTN_PIN_SET);
 
-  if (buttonState == LOW && lastButtonState == HIGH)
+  if (btnStateLedPwr == LOW && lastbtnStateLedPwr == HIGH)
   {
-    if (millis() - lastDebounceTime > debounceDelay)
+    tiempoInicioPresionado = millis(); // Registrar el tiempo inicial
+  }
+  while (btnStateLedPwr == LOW)
+  {
+    tiempoPresionado = millis();
+    pulsadorPresionado = true;
+    btnStateLedPwr = digitalRead(BTN_PIN_LED_PWR);
+    if ((tiempoPresionado - tiempoInicioPresionado) > tiempoClicLargo)
+    {
+      break;
+    }
+  }
+  if (pulsadorPresionado)
+  {
+    tiempoTotal = tiempoPresionado - tiempoInicioPresionado; // Calcular el tiempo presionado
+    // Verificar si fue un clic corto o largo
+    if (tiempoTotal < tiempoClicLargo)
     {
       currentMode = (currentMode + 1) % 5; // Cambia de modo (0-4)
       // Serial.printf("BTN modo: %d\n", currentMode);
       lastDebounceTime = millis();
       stepCounter = 0; // Reiniciar pasos para nuevos efectos
     }
-  }
-  if (digitalRead(BUTTON_PIN_RST) == LOW)
-  {                // Si se presiona el botón
-    delay(200);    // Pequeña espera para evitar rebotes
-    ESP.restart(); // Reinicia el ESP32
-  }
-  if (buttonStatePwr == LOW && lastButtonStatePwr == HIGH)
-  {
-    if (digitalRead(BUTTON_PIN_PWR) == LOW)
+    else
     {
       Serial.println("Apagando ESP32...");
       delay(500); // Pequeña espera
@@ -318,9 +332,14 @@ void handleButtonPress()
       fullColor(colBlack);
       esp_deep_sleep_start(); // Entrar en modo de bajo consumo
     }
+    pulsadorPresionado = false; // Reiniciar la bandera
   }
-  lastButtonState = buttonState;
-  lastButtonStatePwr = buttonStatePwr;
+  if (btnStatePinSet == LOW && lastbtnStatePinSet == HIGH)
+  {
+    // SET
+  }
+  lastbtnStateLedPwr = btnStateLedPwr;
+  lastbtnStatePinSet = btnStatePinSet;
 }
 
 /***********************************
