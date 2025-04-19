@@ -4,12 +4,12 @@
 #include <SPIFFS.h>
 #include <DNSServer.h>
 #include <esp_sleep.h>
+#include <Preferences.h>
 
 // ESP32 C3
-#define LEDS_PIN GPIO_NUM_3
-#define BUTTON_PIN_LED GPIO_NUM_2 // Pin del botón
-#define BUTTON_PIN_RST GPIO_NUM_0
-#define BUTTON_PIN_PWR GPIO_NUM_1
+#define LEDS_PIN GPIO_NUM_5
+#define BTN_PIN_LED_PWR GPIO_NUM_1
+#define BTN_PIN_SET GPIO_NUM_2
 
 #define DNS_NAME "lamp.local"
 #define NUMPIXELS 50
@@ -20,6 +20,7 @@ WiFiManager wm;
 DNSServer dnsServer;
 WebServer server(80);
 Adafruit_NeoPixel pixels(NUMPIXELS, LEDS_PIN, NEO_GRB + NEO_KHZ800);
+Preferences preferences;
 
 // Variables globales para el color
 uint32_t colSkyBlue = pixels.Color(0, 200, 200);
@@ -29,15 +30,24 @@ uint32_t colYellow = pixels.Color(251, 188, 5);
 uint32_t colOrange = pixels.Color(246, 83, 20);
 uint32_t colBlack = pixels.Color(0, 0, 0);
 // Variables de estado
-int currentMode = 3;         // Modo actual del juego de luces
-bool lastButtonState = HIGH; // Estado anterior del botón
-bool lastButtonStatePwr = HIGH;
+int currentMode = 3;            // Modo actual del juego de luces
+bool lastbtnStateLedPwr = HIGH; // Estado anterior del botón
+bool lastbtnStatePinSet = HIGH;
 bool espState = true; // Estado del ESP32 (encendido o apagado)
 unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 50; // Tiempo para evitar rebotes
 // Variables para efectos sin delay
 unsigned long previousMillis = 0;
 int stepCounter = 0;
+
+// Pulsador
+int estadoPulsador = HIGH;
+int estadoAnteriorPulsador = HIGH;
+unsigned long tiempoInicioPresionado = 0;
+unsigned long tiempoPresionado = 0;
+unsigned long tiempoTotal = 0;
+bool pulsadorPresionado = false;
+const unsigned long tiempoClicLargo = 672;
 
 /***********************************
  * AP WiFi Manager
@@ -167,14 +177,15 @@ void handleColor()
 void setup()
 {
   // debug_init();
-  pinMode(BUTTON_PIN_LED, INPUT_PULLUP);
-  pinMode(BUTTON_PIN_RST, INPUT_PULLUP);
-  pinMode(BUTTON_PIN_PWR, INPUT_PULLUP);
+  pinMode(BTN_PIN_LED_PWR, INPUT_PULLUP);
+  pinMode(BTN_PIN_SET, INPUT_PULLUP);
 
   Serial.begin(115200);
   // Configuracion Pixel
   pixels.begin();
   pixels.show();
+  // Iniciar la memoria no volátil
+  preferences.begin("storage", false);
 
   // Detectar si el ESP32 se despertó de deep sleep
   if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0)
@@ -192,54 +203,61 @@ void setup()
   esp_deep_sleep_enable_gpio_wakeup(1ULL << BUTTON_PIN_PWR, ESP_GPIO_WAKEUP_GPIO_LOW); // ESP32C3
   
 
-  // if (!SPIFFS.begin(true))
-  // {
-  //   Serial.println("Error al montar SPIFFS");
-  //   return;
-  // }
-  // Serial.println("SPIFFS montado correctamente");
+  if (!SPIFFS.begin(true))
+  {
+    Serial.println("Error al montar SPIFFS");
+    return;
+  }
+  Serial.println("SPIFFS montado correctamente");
+  Serial.printf("stateInitSet:'%s'\n",preferences.getBool("stateInitSet")?"true":"false");
+  if (preferences.getBool("stateInitSet", false))
+  {
+    // Configuracion punto de acceso a "LamparaIoT"
+    wm.setConfigPortalTimeout(180);       // Tiempo de espera en segundos
+    wm.setAPCallback(configModeCallback); // Callback cuando se inicia el AP
+    wm.setCustomHeadElement("<title>Configuración LamparaIoT</title>");
+    //  Intenta conectarse a una red guardada, si falla, inicia el portal de configuración
+    if (!wm.autoConnect("LamparaIoT"))
+    {
+      Serial.println("No se pudo conectar, reiniciando...");
+      delay(100);
+      preferences.putBool("stateInitSet", false);
+    }
+    if (WiFi.localIP())
+    {
+      // Si llega aquí, está conectado a la red WiFi
+      Serial.printf("Conectado a la red WiFi\nDirección IP:%s\n", WiFi.localIP().toString().c_str());
+      // Indicación visual de conexión exitosa
+      indicateColor(colGreen);
 
-  // Configuracion punto de acceso a "LamparaIoT"
-  // wm.setConfigPortalTimeout(180);       // Tiempo de espera en segundos
-  // wm.setAPCallback(configModeCallback); // Callback cuando se inicia el AP
-  // wm.setCustomHeadElement("<title>Configuración LamparaIoT</title>");
+      server.on("/", handleRoot);
+      server.on("/chroma.png", handleImage);
+      server.on("/script.min.js", handleScript);
+      server.on("/api", handleColor);
 
-  // Intenta conectarse a una red guardada, si falla, inicia el portal de configuración
-  // if (!wm.autoConnect("LamparaIoT"))
-  // {
-  //   Serial.println("No se pudo conectar, reiniciando...");
-  //   delay(100);
-  //   // ESP.restart();
-  // }
-  // if (WiFi.localIP())
-  // {
-  //   // Si llega aquí, está conectado a la red WiFi
-  //   Serial.printf("Conectado a la red WiFi\nDirección IP:%s\n", WiFi.localIP().toString().c_str());
-  //   // Indicación visual de conexión exitosa
-  //   indicateColor(colGreen);
+      server.begin();
 
-  //   server.on("/", handleRoot);
-  //   server.on("/chroma.png", handleImage);
-  //   server.on("/script.min.js", handleScript);
-  //   server.on("/api", handleColor);
-
-  //   server.begin();
-
-  //   // Inicia el servidor DNS
-  //   if (dnsServer.start(53, DNS_NAME, WiFi.localIP()))
-  //   {
-  //     Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.localIP().toString().c_str(), DNS_NAME);
-  //   }
-  //   else
-  //   {
-  //     Serial.println("Error al iniciar el servidor DNS");
-  //   }
-  // }
-  // else
-  // {
-  Serial.println("Sin conexion a la red");
-  indicateColor(colYellow);
-  // }
+      // Inicia el servidor DNS
+      if (dnsServer.start(53, DNS_NAME, WiFi.localIP()))
+      {
+        Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.localIP().toString().c_str(), DNS_NAME);
+      }
+      else
+      {
+        Serial.println("Error al iniciar el servidor DNS");
+      }
+    }
+    else
+    {
+      Serial.println("Sin conexion a la red");
+      indicateColor(colYellow);
+    }
+  }
+  else
+  {
+    Serial.println("Sin conexion a la red");
+    indicateColor(colYellow);
+  }
 }
 
 /***********************************
@@ -251,13 +269,11 @@ void loop()
   {
     // Procesa las solicitudes DNS
     dnsServer.processNextRequest();
-
     // Maneja las solicitudes HTTP
     server.handleClient();
   }
   // Detecta si se presionó el botón
   handleButtonPress();
-
   // Actualiza efectos sin bloquear el loop
   unsigned long currentMillis = millis();
 
@@ -290,27 +306,38 @@ void loop()
 // Función para detectar el botón con debounce
 void handleButtonPress()
 {
-  bool buttonState = digitalRead(BUTTON_PIN_LED);
-  bool buttonStatePwr = digitalRead(BUTTON_PIN_PWR);
+  bool btnStateLedPwr = digitalRead(BTN_PIN_LED_PWR);
+  bool btnStatePinSet = digitalRead(BTN_PIN_SET);
 
-  if (buttonState == LOW && lastButtonState == HIGH)
+  if (btnStateLedPwr == LOW && lastbtnStateLedPwr == HIGH)
   {
-    if (millis() - lastDebounceTime > debounceDelay)
+    tiempoInicioPresionado = millis(); // Registrar el tiempo inicial
+  }
+  while (btnStateLedPwr == LOW)
+  {
+    tiempoPresionado = millis();
+    pulsadorPresionado = true;
+    btnStateLedPwr = digitalRead(BTN_PIN_LED_PWR);
+    if ((tiempoPresionado - tiempoInicioPresionado) > tiempoClicLargo)
     {
-      currentMode = (currentMode + 1) % 5; // Cambia de modo (0-4)
-      // Serial.printf("BTN modo: %d\n", currentMode);
-      lastDebounceTime = millis();
-      stepCounter = 0; // Reiniciar pasos para nuevos efectos
+      break;
     }
   }
-  if (digitalRead(BUTTON_PIN_RST) == LOW)
-  {                // Si se presiona el botón
-    delay(200);    // Pequeña espera para evitar rebotes
-    ESP.restart(); // Reinicia el ESP32
-  }
-  if (buttonStatePwr == LOW && lastButtonStatePwr == HIGH)
+  if (pulsadorPresionado)
   {
-    if (digitalRead(BUTTON_PIN_PWR) == LOW)
+    tiempoTotal = tiempoPresionado - tiempoInicioPresionado; // Calcular el tiempo presionado
+    // Verificar si fue un clic corto o largo
+    if (tiempoTotal < tiempoClicLargo)
+    {
+      if (millis() - lastDebounceTime > debounceDelay)
+      {
+        currentMode = (currentMode + 1) % 5; // Cambia de modo (0-4)
+        // Serial.printf("BTN modo: %d\n", currentMode);
+        lastDebounceTime = millis();
+        stepCounter = 0; // Reiniciar pasos para nuevos efectos
+      }
+    }
+    else
     {
       Serial.println("Apagando ESP32...");
       delay(500); // Pequeña espera
@@ -318,9 +345,16 @@ void handleButtonPress()
       fullColor(colBlack);
       esp_deep_sleep_start(); // Entrar en modo de bajo consumo
     }
+    pulsadorPresionado = false; // Reiniciar la bandera
   }
-  lastButtonState = buttonState;
-  lastButtonStatePwr = buttonStatePwr;
+  if (btnStatePinSet == LOW && lastbtnStatePinSet == HIGH)
+  {
+    Serial.println("------ REINICIO POR BTN ------");
+    preferences.putBool("stateInitSet", true);
+    ESP.restart();
+  }
+  lastbtnStateLedPwr = btnStateLedPwr;
+  lastbtnStatePinSet = btnStatePinSet;
 }
 
 /***********************************
