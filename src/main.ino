@@ -200,8 +200,7 @@ void setup()
     fullColor(colPurple);
   }
   // Configurar el GPIO para despertar cuando pase de HIGH -> LOW
-  esp_deep_sleep_enable_gpio_wakeup(1ULL << BUTTON_PIN_PWR, ESP_GPIO_WAKEUP_GPIO_LOW); // ESP32C3
-  
+  esp_deep_sleep_enable_gpio_wakeup(1ULL << BTN_PIN_LED_PWR, ESP_GPIO_WAKEUP_GPIO_LOW); // ESP32C3
 
   if (!SPIFFS.begin(true))
   {
