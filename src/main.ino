@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <ArduinoOTA.h>
 #include <Adafruit_NeoPixel.h>
 #include <WebServer.h>
 #include <SPIFFS.h>
@@ -17,6 +18,9 @@
 #define NUMPIXELS 50
 #define TIME 100
 #define DELAYVAL 500
+#define OTA_HOSTNAME "ota.lamp.local"
+#define OTA_PASSWORD "369741258"
+
 
 DNSServer dnsServer;
 WebServer server(80);
@@ -180,6 +184,59 @@ void setup()
   pinMode(BTN_PIN_SET, INPUT_PULLUP);
 
   Serial.begin(115200);
+  
+  // IP por defecto o IP estática si lo prefieres
+  WiFi.config(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
+
+  // Configuración OTA
+  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  ArduinoOTA.setPassword(OTA_PASSWORD);
+  ArduinoOTA.setPort(3232); // Puerto por defecto de OTA
+  
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else { // U_SPIFFS
+      type = "filesystem";
+    }
+    Serial.println("Iniciando actualización OTA " + type);
+    pixels.fill(colYellow); // Indicador visual de actualización
+    pixels.show();
+  });
+  
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nActualización OTA completada");
+    pixels.fill(colGreen); // Indicador visual de éxito
+    pixels.show();
+    delay(1000);
+  });
+  
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progreso: %u%%\r", (progress / (total / 100)));
+    // Efecto visual de progreso
+    int ledCount = (progress * NUMPIXELS) / total;
+    pixels.clear();
+    for(int i = 0; i < ledCount; i++) {
+      pixels.setPixelColor(i, colYellow);
+    }
+    pixels.show();
+  });
+  
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Error de autenticación");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Error al iniciar");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Error de conexión");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Error de recepción");
+    else if (error == OTA_END_ERROR) Serial.println("Error al finalizar");
+    pixels.fill(colOrange); // Indicador visual de error
+    pixels.show();
+  });
+  
+  ArduinoOTA.begin();
+  Serial.println("OTA listo");
+  
   // Configuracion Pixel
   pixels.begin();
   pixels.show();
@@ -209,15 +266,14 @@ void setup()
   Serial.println("SPIFFS montado correctamente");
   Serial.printf("stateInitSet:'%s'\n",preferences.getBool("stateInitSet")?"true":"false");
   
-  //if (preferences.getBool("stateInitSet", false)){
-    // Configurar como punto de acceso
+  // Configurar como punto de acceso
   WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
   WiFi.softAP(AP_SSID, AP_PASSWORD);
   Serial.printf("Punto de acceso iniciado. SSID: %s, IP: %s\n", AP_SSID, WiFi.softAPIP().toString().c_str());
   
   // Indicación visual de conexión exitosa
   indicateColor(colGreen);
-  //}  
 
   server.on("/", handleRoot);
   server.on("/chroma.png", handleImage);
@@ -243,6 +299,8 @@ void setup()
  ************************************/
 void loop()
 {
+  ArduinoOTA.handle(); // Manejar actualizaciones OTA
+  
   if (WiFi.softAPIP())
   {
     // Procesa las solicitudes DNS
