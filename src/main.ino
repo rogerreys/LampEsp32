@@ -1,4 +1,4 @@
-#include <WiFiManager.h>
+#include <WiFi.h>
 #include <Adafruit_NeoPixel.h>
 #include <WebServer.h>
 #include <SPIFFS.h>
@@ -12,11 +12,12 @@
 #define BTN_PIN_SET GPIO_NUM_2
 
 #define DNS_NAME "lamp.local"
+#define AP_SSID "LamparaIoT"
+#define AP_PASSWORD "12345678"
 #define NUMPIXELS 50
 #define TIME 100
 #define DELAYVAL 500
 
-WiFiManager wm;
 DNSServer dnsServer;
 WebServer server(80);
 Adafruit_NeoPixel pixels(NUMPIXELS, LEDS_PIN, NEO_GRB + NEO_KHZ800);
@@ -50,16 +51,6 @@ bool pulsadorPresionado = false;
 const unsigned long tiempoClicLargo = 672;
 
 /***********************************
- * AP WiFi Manager
- ************************************/
-void configModeCallback(WiFiManager *myWiFiManager)
-{
-  Serial.println("Entrando en modo de configuración AP");
-  Serial.println(WiFi.softAPIP());                      // Muestra la dirección IP del AP
-  Serial.println(myWiFiManager->getConfigPortalSSID()); // Muestra el nombre del AP
-}
-
-/***********************************
  * PAGINAS WEB WEBSERVER
  ************************************/
 void handleRoot()
@@ -74,6 +65,14 @@ void handleRoot()
   server.streamFile(file, "text/html");
   file.close();
 }
+
+void handleNotFound()
+{
+  // Redirigir todas las solicitudes no encontradas a la página principal
+  server.sendHeader("Location", "/", true);
+  server.send(302, "text/plain", "");
+}
+
 void handleImage()
 {
   File file = SPIFFS.open("/chroma.png", "r");
@@ -110,7 +109,7 @@ void handleColor()
     int gValue = g.toInt();
     int bValue = b.toInt();
 
-    // Serial.printf("RGB_int: %s, %s, %s, %s\n", r, g, b, opt);
+    Serial.printf("RGB_int: %s, %s, %s, %s\n", r, g, b, opt);
 
     if (opt == "3" || opt == "4" || opt == "5")
     {
@@ -134,12 +133,12 @@ void handleColor()
       server.send(200, "text/plain", "opcion recibido");
       if (data == "1")
       {
-        // Serial.printf("opcion:%s - colorWipe - Los Leds se encienden consecutivamente desdel 0 hasta el último\n", data);
+        Serial.printf("opcion:%s - colorWipe - Los Leds se encienden consecutivamente desdel 0 hasta el último\n", data);
         currentMode = 1;
       }
       else if (data == "2")
       {
-        // Serial.printf("opcion:%s - theaterChase - Los leds se encienden y apagan alternativamente uno si y uno no\n", data);
+        Serial.printf("opcion:%s - theaterChase - Los leds se encienden y apagan alternativamente uno si y uno no\n", data);
         currentMode = 2;
       }
       if (data == "3")
@@ -209,53 +208,33 @@ void setup()
   }
   Serial.println("SPIFFS montado correctamente");
   Serial.printf("stateInitSet:'%s'\n",preferences.getBool("stateInitSet")?"true":"false");
-  if (preferences.getBool("stateInitSet", false))
+  
+  //if (preferences.getBool("stateInitSet", false)){
+    // Configurar como punto de acceso
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(AP_SSID, AP_PASSWORD);
+  Serial.printf("Punto de acceso iniciado. SSID: %s, IP: %s\n", AP_SSID, WiFi.softAPIP().toString().c_str());
+  
+  // Indicación visual de conexión exitosa
+  indicateColor(colGreen);
+  //}  
+
+  server.on("/", handleRoot);
+  server.on("/chroma.png", handleImage);
+  server.on("/script.min.js", handleScript);
+  server.on("/api", handleColor);
+  server.onNotFound(handleNotFound); // Capturar todas las rutas no definidas
+
+  server.begin();
+
+  // Inicia el servidor DNS
+  if (dnsServer.start(53, "*", WiFi.softAPIP()))
   {
-    // Configuracion punto de acceso a "LamparaIoT"
-    wm.setConfigPortalTimeout(180);       // Tiempo de espera en segundos
-    wm.setAPCallback(configModeCallback); // Callback cuando se inicia el AP
-    wm.setCustomHeadElement("<title>Configuración LamparaIoT</title>");
-    //  Intenta conectarse a una red guardada, si falla, inicia el portal de configuración
-    if (!wm.autoConnect("LamparaIoT"))
-    {
-      Serial.println("No se pudo conectar, reiniciando...");
-      delay(100);
-      preferences.putBool("stateInitSet", false);
-    }
-    if (WiFi.localIP())
-    {
-      // Si llega aquí, está conectado a la red WiFi
-      Serial.printf("Conectado a la red WiFi\nDirección IP:%s\n", WiFi.localIP().toString().c_str());
-      // Indicación visual de conexión exitosa
-      indicateColor(colGreen);
-
-      server.on("/", handleRoot);
-      server.on("/chroma.png", handleImage);
-      server.on("/script.min.js", handleScript);
-      server.on("/api", handleColor);
-
-      server.begin();
-
-      // Inicia el servidor DNS
-      if (dnsServer.start(53, DNS_NAME, WiFi.localIP()))
-      {
-        Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.localIP().toString().c_str(), DNS_NAME);
-      }
-      else
-      {
-        Serial.println("Error al iniciar el servidor DNS");
-      }
-    }
-    else
-    {
-      Serial.println("Sin conexion a la red");
-      indicateColor(colYellow);
-    }
+    Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.softAPIP().toString().c_str(), DNS_NAME);
   }
   else
   {
-    Serial.println("Sin conexion a la red");
-    indicateColor(colYellow);
+    Serial.println("Error al iniciar el servidor DNS");
   }
 }
 
@@ -264,7 +243,7 @@ void setup()
  ************************************/
 void loop()
 {
-  if (WiFi.localIP())
+  if (WiFi.softAPIP())
   {
     // Procesa las solicitudes DNS
     dnsServer.processNextRequest();
