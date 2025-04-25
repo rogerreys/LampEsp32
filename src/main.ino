@@ -302,8 +302,9 @@ void setup()
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
   WiFi.softAP(AP_SSID, AP_PASSWORD);
-  Serial.printf("Punto de acceso iniciado. SSID: %s, IP: %s\n", AP_SSID, WiFi.softAPIP().toString().c_str());
-  
+  // Serial.printf("Punto de acceso iniciado. SSID: %s, IP: %s\n", AP_SSID, WiFi.softAPIP().toString().c_str());
+  addLog("Punto de acceso iniciado. SSID: " + String(AP_SSID) + ", IP: " + String(WiFi.softAPIP().toString().c_str()));
+
   // Indicación visual de conexión exitosa
   indicateColor(colGreen);
 
@@ -312,9 +313,10 @@ void setup()
   server.on("/script.min.js", handleScript);
   server.on("/api", handleColor);
   server.on("/log", handleLog);
-  server.onNotFound(handleNotFound); // Capturar todas las rutas no definidas
+  server.onNotFound(handleNotFound);
 
   server.begin();
+  addLog("Servidor web iniciado en http://" + String(DNS_NAME));
 
   // Inicia el servidor DNS
   if (dnsServer.start(53, "*", WiFi.softAPIP()))
