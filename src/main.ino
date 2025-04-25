@@ -221,20 +221,24 @@ void setup()
     } else { // U_SPIFFS
       type = "filesystem";
     }
-    Serial.println("Iniciando actualización OTA " + type);
+    // Serial.println("Iniciando actualización OTA " + type);
+    addLog("Iniciando actualización OTA " + type);
     pixels.fill(colYellow); // Indicador visual de actualización
     pixels.show(); });
 
   ArduinoOTA.onEnd([]()
                    {
-    Serial.println("\nActualización OTA completada");
+    // Serial.println("\nActualización OTA completada");
+    addLog("Actualización OTA completada");
     pixels.fill(colGreen); // Indicador visual de éxito
     pixels.show();
     delay(1000); });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
                         {
-    Serial.printf("Progreso: %u%%\r", (progress / (total / 100)));
+    // Serial.printf("Progreso: %u%%\r", (progress / (total / 100)));
+    String progressStr = "Progreso: " + String((progress / (total / 100))) + "%";
+    addLog(progressStr);
     // Efecto visual de progreso
     int ledCount = (progress * NUMPIXELS) / total;
     pixels.clear();
@@ -245,19 +249,23 @@ void setup()
 
   ArduinoOTA.onError([](ota_error_t error)
                      {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Error de autenticación");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Error al iniciar");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Error de conexión");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Error de recepción");
-    else if (error == OTA_END_ERROR) Serial.println("Error al finalizar");
+    String errorMsg = "Error[" + String(error) + "]: ";
+    if (error == OTA_AUTH_ERROR) errorMsg += "Error de autenticación";
+    else if (error == OTA_BEGIN_ERROR) errorMsg += "Error al iniciar";
+    else if (error == OTA_CONNECT_ERROR) errorMsg += "Error de conexión";
+    else if (error == OTA_RECEIVE_ERROR) errorMsg += "Error de recepción";
+    else if (error == OTA_END_ERROR) errorMsg += "Error al finalizar";
+    // Serial.println(errorMsg);
+    addLog(errorMsg);
     pixels.fill(colOrange); // Indicador visual de error
     pixels.show(); });
 
   ArduinoOTA.begin();
-  Serial.println("OTA listo");
-  Serial.print("IP del AP: ");
-  Serial.println(WiFi.softAPIP()); // Debería mostrar 192.168.4.1
+  // Serial.println("OTA listo");
+  // Serial.print("IP del AP: ");
+  // Serial.println(WiFi.softAPIP()); // Debería mostrar 192.168.4.1
+  addLog("OTA listo");
+  addLog("IP del AP: " + String(WiFi.softAPIP().toString().c_str()));
 
   // Configuracion Pixel
   pixels.begin();
@@ -268,11 +276,13 @@ void setup()
   // Detectar si el ESP32 se despertó de deep sleep
   if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0)
   {
-    Serial.println("ESP32 despertó por el botón");
+    // Serial.println("ESP32 despertó por el botón");
+    addLog("ESP32 despertó por el botón");
   }
   else
   {
-    Serial.println("ESP32 iniciando normalmente");
+    // Serial.println("ESP32 iniciando normalmente");
+    addLog("ESP32 iniciando normalmente");
     // Indicación visual de conexión exitosa
     indicateColor(colPurple);
     fullColor(colPurple);
@@ -310,7 +320,7 @@ void setup()
   if (dnsServer.start(53, "*", WiFi.softAPIP()))
   {
     // Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.softAPIP().toString().c_str(), DNS_NAME);
-    addLog("Servidor DNS iniciado correctamente: "+ WiFi.softAPIP().toString().c_str()+" " + DNS_NAME);
+    addLog("Servidor DNS iniciado correctamente: " + String(WiFi.softAPIP().toString().c_str()) + " -> " + DNS_NAME);
   }
   else
   {
@@ -394,13 +404,15 @@ void handleButtonPress()
       {
         currentMode = (currentMode + 1) % 5; // Cambia de modo (0-4)
         // Serial.printf("BTN modo: %d\n", currentMode);
+        addLog("BTN modo: " + String(currentMode));
         lastDebounceTime = millis();
         stepCounter = 0; // Reiniciar pasos para nuevos efectos
       }
     }
     else
     {
-      Serial.println("Apagando ESP32...");
+      // Serial.println("Apagando ESP32...");
+      addLog("Apagando ESP32...");
       delay(500); // Pequeña espera
       indicateColor(colOrange);
       fullColor(colBlack);
@@ -410,7 +422,8 @@ void handleButtonPress()
   }
   if (btnStatePinSet == LOW && lastbtnStatePinSet == HIGH)
   {
-    Serial.println("------ REINICIO POR BTN ------");
+    // Serial.println("------ REINICIO POR BTN ------");
+    addLog("------ REINICIO POR BTN ------");
     preferences.putBool("stateInitSet", true);
     ESP.restart();
   }
