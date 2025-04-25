@@ -21,7 +21,6 @@
 #define OTA_HOSTNAME "ota.lamp.local"
 #define OTA_PASSWORD "369741258"
 
-
 DNSServer dnsServer;
 WebServer server(80);
 Adafruit_NeoPixel pixels(NUMPIXELS, LEDS_PIN, NEO_GRB + NEO_KHZ800);
@@ -53,6 +52,8 @@ unsigned long tiempoPresionado = 0;
 unsigned long tiempoTotal = 0;
 bool pulsadorPresionado = false;
 const unsigned long tiempoClicLargo = 672;
+// Log Web
+String logBuffer = ""; // Almacenar logs recientes
 
 /***********************************
  * PAGINAS WEB WEBSERVER
@@ -69,14 +70,12 @@ void handleRoot()
   server.streamFile(file, "text/html");
   file.close();
 }
-
 void handleNotFound()
 {
   // Redirigir todas las solicitudes no encontradas a la página principal
   server.sendHeader("Location", "/", true);
   server.send(302, "text/plain", "");
 }
-
 void handleImage()
 {
   File file = SPIFFS.open("/chroma.png", "r");
@@ -113,7 +112,7 @@ void handleColor()
     int gValue = g.toInt();
     int bValue = b.toInt();
 
-    Serial.printf("RGB_int: %s, %s, %s, %s\n", r, g, b, opt);
+    // Serial.printf("RGB_int: %s, %s, %s, %s\n", r, g, b, opt);
 
     if (opt == "3" || opt == "4" || opt == "5")
     {
@@ -173,7 +172,28 @@ void handleColor()
     server.send(400, "text/plain", "Parametros incorrectos");
   }
 }
+void handleLog()
+{
+  String html = "<html><body><h1>ESP32 Logs</h1>";
+  html += "<div id='logs'>" + logBuffer + "</div>";
+  html += "<script>setInterval(function() { location.reload(); }, 5000);</script>";
+  html += "</body></html>";
+  server.send(200, "text/html", html);
+}
 
+/***********************************
+ * LOG WEB
+ ************************************/
+void addLog(String message)
+{
+  logBuffer += message + "<br>";
+  // Limitar tamaño del buffer
+  if (logBuffer.length() > 5000)
+  {
+    logBuffer = logBuffer.substring(logBuffer.length() - 5000);
+  }
+  Serial.println(message); // También enviar a serial
+}
 /***********************************
  * SETUP
  ************************************/
@@ -184,7 +204,7 @@ void setup()
   pinMode(BTN_PIN_SET, INPUT_PULLUP);
 
   Serial.begin(115200);
-  
+
   // IP por defecto o IP estática si lo prefieres
   WiFi.config(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
 
@@ -192,8 +212,9 @@ void setup()
   ArduinoOTA.setHostname(OTA_HOSTNAME);
   ArduinoOTA.setPassword(OTA_PASSWORD);
   ArduinoOTA.setPort(3232); // Puerto por defecto de OTA
-  
-  ArduinoOTA.onStart([]() {
+
+  ArduinoOTA.onStart([]()
+                     {
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH) {
       type = "sketch";
@@ -202,17 +223,17 @@ void setup()
     }
     Serial.println("Iniciando actualización OTA " + type);
     pixels.fill(colYellow); // Indicador visual de actualización
-    pixels.show();
-  });
-  
-  ArduinoOTA.onEnd([]() {
+    pixels.show(); });
+
+  ArduinoOTA.onEnd([]()
+                   {
     Serial.println("\nActualización OTA completada");
     pixels.fill(colGreen); // Indicador visual de éxito
     pixels.show();
-    delay(1000);
-  });
-  
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    delay(1000); });
+
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+                        {
     Serial.printf("Progreso: %u%%\r", (progress / (total / 100)));
     // Efecto visual de progreso
     int ledCount = (progress * NUMPIXELS) / total;
@@ -220,10 +241,10 @@ void setup()
     for(int i = 0; i < ledCount; i++) {
       pixels.setPixelColor(i, colYellow);
     }
-    pixels.show();
-  });
-  
-  ArduinoOTA.onError([](ota_error_t error) {
+    pixels.show(); });
+
+  ArduinoOTA.onError([](ota_error_t error)
+                     {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) Serial.println("Error de autenticación");
     else if (error == OTA_BEGIN_ERROR) Serial.println("Error al iniciar");
@@ -231,12 +252,13 @@ void setup()
     else if (error == OTA_RECEIVE_ERROR) Serial.println("Error de recepción");
     else if (error == OTA_END_ERROR) Serial.println("Error al finalizar");
     pixels.fill(colOrange); // Indicador visual de error
-    pixels.show();
-  });
-  
+    pixels.show(); });
+
   ArduinoOTA.begin();
   Serial.println("OTA listo");
-  
+  Serial.print("IP del AP: ");
+  Serial.println(WiFi.softAPIP()); // Debería mostrar 192.168.4.1
+
   // Configuracion Pixel
   pixels.begin();
   pixels.show();
@@ -264,8 +286,8 @@ void setup()
     return;
   }
   Serial.println("SPIFFS montado correctamente");
-  Serial.printf("stateInitSet:'%s'\n",preferences.getBool("stateInitSet")?"true":"false");
-  
+  Serial.printf("stateInitSet:'%s'\n", preferences.getBool("stateInitSet") ? "true" : "false");
+
   // Configurar como punto de acceso
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
@@ -279,6 +301,7 @@ void setup()
   server.on("/chroma.png", handleImage);
   server.on("/script.min.js", handleScript);
   server.on("/api", handleColor);
+  server.on("/log", handleLog);
   server.onNotFound(handleNotFound); // Capturar todas las rutas no definidas
 
   server.begin();
@@ -286,11 +309,13 @@ void setup()
   // Inicia el servidor DNS
   if (dnsServer.start(53, "*", WiFi.softAPIP()))
   {
-    Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.softAPIP().toString().c_str(), DNS_NAME);
+    // Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.softAPIP().toString().c_str(), DNS_NAME);
+    addLog("Servidor DNS iniciado correctamente: "+ WiFi.softAPIP().toString().c_str()+" " + DNS_NAME);
   }
   else
   {
-    Serial.println("Error al iniciar el servidor DNS");
+    // Serial.println("Error al iniciar el servidor DNS");
+    addLog("Error al iniciar el servidor DNS");
   }
 }
 
@@ -300,7 +325,7 @@ void setup()
 void loop()
 {
   ArduinoOTA.handle(); // Manejar actualizaciones OTA
-  
+
   if (WiFi.softAPIP())
   {
     // Procesa las solicitudes DNS
