@@ -54,6 +54,11 @@ bool pulsadorPresionado = false;
 const unsigned long tiempoClicLargo = 672;
 // Log Web
 String logBuffer = ""; // Almacenar logs recientes
+// Config
+int port = 3232; // Puerto para OTA
+IPAddress localIP(192, 168, 4, 1);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
 
 /***********************************
  * PAGINAS WEB WEBSERVER
@@ -206,12 +211,12 @@ void setup()
   Serial.begin(115200);
 
   // IP por defecto o IP estática si lo prefieres
-  WiFi.config(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
+  WiFi.config(localIP, gateway, subnet);
 
   // Configuración OTA
   ArduinoOTA.setHostname(OTA_HOSTNAME);
   ArduinoOTA.setPassword(OTA_PASSWORD);
-  ArduinoOTA.setPort(3232); // Puerto por defecto de OTA
+  ArduinoOTA.setPort(port); // Puerto por defecto de OTA
 
   ArduinoOTA.onStart([]()
                      {
