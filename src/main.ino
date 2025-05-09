@@ -12,7 +12,7 @@
 #define BTN_PIN_LED_PWR GPIO_NUM_1
 #define BTN_PIN_SET GPIO_NUM_2
 
-#define DNS_NAME "lamp.local"
+#define DNS_NAME "*" // "lamp.local"
 #define AP_SSID "LamparaIoT"
 #define AP_PASSWORD "12345678"
 #define NUMPIXELS 50
@@ -324,7 +324,7 @@ void setup()
   addLog("Servidor web iniciado en http://" + String(DNS_NAME));
 
   // Inicia el servidor DNS
-  if (dnsServer.start(53, "*", WiFi.softAPIP()))
+  if (dnsServer.start(53, DNS_NAME, WiFi.softAPIP()))
   {
     // Serial.printf("Servidor DNS iniciado correctamente: %s -> %s\n", WiFi.softAPIP().toString().c_str(), DNS_NAME);
     addLog("Servidor DNS iniciado correctamente: " + String(WiFi.softAPIP().toString().c_str()) + " -> " + DNS_NAME);
