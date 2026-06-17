@@ -13,7 +13,7 @@
 #define BTN_PIN_SET GPIO_NUM_2
 
 #define DNS_NAME "*" // "lamp.local"
-#define AP_SSID "LamparaIoT"
+#define AP_SSID "LamparaBerserk"
 #define AP_PASSWORD "12345678"
 #define NUMPIXELS 50
 #define TIME 100
